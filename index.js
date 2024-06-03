@@ -51,6 +51,17 @@ async function run() {
       });
     };
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     //user related api
 
     app.post("/users", async (req, res) => {
@@ -71,7 +82,7 @@ async function run() {
 
     app.patch(
       "/users/admin/:id",
-      verifyToken,
+      verifyToken, verifyAdmin,
       async (req, res) => {
         const id = req.params.id;
         const filter = { _id: new ObjectId(id) };
