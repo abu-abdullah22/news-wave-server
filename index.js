@@ -24,6 +24,9 @@ async function run() {
     await client.connect();
 
     const userCollection = client.db("newswaveDB").collection("users");
+    const publisherCollection = client
+      .db("newswaveDB")
+      .collection("publishers");
 
     //jwt related apis
     app.post("/jwt", async (req, res) => {
@@ -75,14 +78,15 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     app.patch(
       "/users/admin/:id",
-      verifyToken, verifyAdmin,
+      verifyToken,
+      verifyAdmin,
       async (req, res) => {
         const id = req.params.id;
         const filter = { _id: new ObjectId(id) };
@@ -109,6 +113,20 @@ async function run() {
       }
       res.send({ admin });
     });
+
+    //publisher related api
+    app.post("/publishers", verifyToken, verifyAdmin, async (req, res) => {
+      const publisher = req.body;
+      const result = await publisherCollection.insertOne(publisher);
+      res.send(result);
+    });
+
+    app.get('/publishers', async(req,res)=> {
+      const result = await publisherCollection.find().toArray() ;
+      res.send(result) ;
+    })
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
