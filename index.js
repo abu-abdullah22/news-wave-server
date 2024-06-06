@@ -6,7 +6,9 @@ require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173']
+}));
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gvqow0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -24,9 +26,8 @@ async function run() {
     await client.connect();
 
     const userCollection = client.db("newswaveDB").collection("users");
-    const publisherCollection = client
-      .db("newswaveDB")
-      .collection("publishers");
+    const publisherCollection = client.db("newswaveDB").collection("publishers");
+    const articleCollection = client.db("newswaveDB").collection("articles");
 
     //jwt related apis
     app.post("/jwt", async (req, res) => {
@@ -125,6 +126,19 @@ async function run() {
       const result = await publisherCollection.find().toArray() ;
       res.send(result) ;
     })
+
+
+    //article related api
+    app.post('/articles', async(req,res)=>{
+      const article = req.body ;
+      const result = await articleCollection.insertOne(article);
+      res.send(result) ;
+    })
+
+   app.get('/articles', async(req,res)=>{
+    const result = await articleCollection.find().toArray();
+    res.send(result);
+   })
 
 
 
