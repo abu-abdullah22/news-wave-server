@@ -141,6 +141,24 @@ async function run() {
    })
 
 
+   app.patch(
+    "/articles/admin/:id",
+    verifyToken,
+    verifyAdmin,
+    async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: "approved",
+        },
+      };
+      const result = await articleCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    }
+  );
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
