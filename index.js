@@ -140,6 +140,12 @@ async function run() {
     res.send(result);
    })
 
+   app.get('/allArticles', async(req,res)=>{
+    const query = {status : 'approved'}
+    const result = await articleCollection.find(query).toArray();
+    res.send(result);
+   })
+
 
    app.patch(
     "/articles/admin/:id",
