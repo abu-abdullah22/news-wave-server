@@ -153,6 +153,14 @@ async function run() {
     res.send(result);
    })
 
+  
+   app.get('/articles/:email',async(req,res)=> {
+    const email = req.params.email ;
+    const filter = {author_email : email} ;
+    const result = await articleCollection.find(filter).toArray() ;
+    res.send(result) ;
+  })
+
 
    app.patch(
     "/articles/admin/:id",
