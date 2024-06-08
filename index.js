@@ -84,6 +84,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/users/:email',async(req,res)=> {
+      const email = req.params.email ;
+      const filter = {email : email} ;
+      const result = await userCollection.findOne(filter) ;
+      res.send(result) ;
+    })
+
     app.patch(
       "/users/admin/:id",
       verifyToken,
@@ -164,7 +171,7 @@ async function run() {
     }
   );
   
-  app.patch('/articles/admin/decline/:id',async(req,res)=>{
+  app.patch('/articles/admin/decline/:id',verifyToken,verifyAdmin,async(req,res)=>{
     const articleId = req.params.id;
     const { declineReason } = req.body;
     const filter = {_id : new ObjectId(articleId)};
@@ -178,7 +185,7 @@ async function run() {
     res.send(result); 
   }) ;
 
-  app.patch('/articles/admin/premium/:id',async(req,res)=> {
+  app.patch('/articles/admin/premium/:id',verifyToken,verifyAdmin,async(req,res)=> {
     const id = req.params.id ;
     const filter = {_id : new ObjectId(id)} ;
     const updatedDoc = {
@@ -189,7 +196,8 @@ async function run() {
     const result = await articleCollection.updateOne(filter,updatedDoc) ;
     res.send(result) ;
   }) ;
-  app.delete('/articles/admin/delete/:id',async(req,res)=> {
+
+  app.delete('/articles/admin/delete/:id',verifyToken,verifyAdmin,async(req,res)=> {
     const id = req.params.id ;
     const filter = {_id: new ObjectId(id)} ;
     const result = await articleCollection.deleteOne(filter) ;
