@@ -163,6 +163,19 @@ async function run() {
       res.send(result);
     }
   );
+  
+  app.patch('/articles/admin/decline/:id',async(req,res)=>{
+    const articleId = req.params.id;
+    const { declineReason } = req.body;
+    const filter = {_id : new ObjectId(articleId)};
+    const updatedDoc = {
+      $set : {
+        status : 'declined',
+      }
+    } ;
+    const result = await articleCollection.updateOne(filter,updatedDoc);
+    res.send(result); 
+  })
 
 
 
