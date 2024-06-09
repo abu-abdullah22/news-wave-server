@@ -173,6 +173,22 @@ async function run() {
     res.send(result) ;
   })
 
+  app.patch('/articles/:id/incrementViewCount', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    const articleId = new ObjectId(id);
+    const updateResult = await articleCollection.updateOne(
+      { _id: articleId },
+      { $inc: { viewCount: 1 } }
+    );
+    const article = await articleCollection.findOne({ _id: articleId });
+    res.status(200).send(article);
+  });
+
+  app.get('/trendingArticles', async (req, res) => {
+    const articles = await articleCollection.find().sort({ viewCount: -1 }).limit(6).toArray();
+    res.status(200).json(articles);
+  });
+
    app.patch(
     "/articles/admin/:id",
     verifyToken,
