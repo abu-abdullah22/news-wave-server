@@ -154,13 +154,18 @@ async function run() {
    })
 
   
-   app.get('/articles/:email',async(req,res)=> {
+   app.get('/articles/:email',verifyToken,async(req,res)=> {
     const email = req.params.email ;
     const filter = {author_email : email} ;
     const result = await articleCollection.find(filter).toArray() ;
     res.send(result) ;
   })
 
+  app.get('/premiumArticles',verifyToken,async(req,res)=>{
+    const filter = {premium : true} ;
+    const result = await articleCollection.find(filter).toArray() ;
+    res.send(result) ;
+  })
 
    app.patch(
     "/articles/admin/:id",
