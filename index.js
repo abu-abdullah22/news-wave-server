@@ -147,11 +147,25 @@ async function run() {
     res.send(result);
    })
 
-   app.get('/allArticles', async(req,res)=>{
-    const query = {status : 'approved'}
-    const result = await articleCollection.find(query).toArray();
+   app.get('/allArticles', async (req, res) => {
+    const { publisher, tags, title } = req.query;
+    let filter = { status: 'approved' };
+
+    if (publisher) {
+        filter.publisher = publisher;
+    }
+    if (tags) {
+        filter.tags = { $in: tags.split(',') };
+    }
+    if (title) {
+        filter.title = { $regex: title, $options: 'i' }; 
+    }
+
+    const result = await articleCollection.find(filter).toArray();
     res.send(result);
-   })
+});
+
+
 
    app.get('/articles/:email',verifyToken,async(req,res)=> {
     const email = req.params.email ;
@@ -166,12 +180,30 @@ async function run() {
     res.send(result) ;
   })
 
-  app.get('/article/:id', async(req,res)=>{
+  app.get('/article/:id',verifyToken, async(req,res)=>{
     const id = req.params.id ;
     const filter = {_id : new ObjectId(id)} ;
     const result = await articleCollection.findOne(filter) ;
     res.send(result) ;
-  })
+  }) 
+  
+  app.put('/update/:id', async(req, res)=> {
+    const id = req.params.id ;
+    const query = {_id : new ObjectId(id)} ;
+    const articleData = req.body ;
+    const options = {upsert : true} ;
+    const updateDoc = {
+      $set : {
+        ...articleData, 
+      }
+    }
+    const result = await articleCollection.updateOne(query, updateDoc, options);
+    res.send(result) ;
+ 
+  }) ;
+
+
+
 
   app.patch('/articles/:id/incrementViewCount', verifyToken, async (req, res) => {
     const { id } = req.params;
@@ -189,6 +221,15 @@ async function run() {
     res.status(200).json(articles);
   });
 
+  app.delete('/delete/:id',verifyToken,async(req,res)=> {
+    const id = req.params.id ;
+    const filter = {_id: new ObjectId(id)} ;
+    const result = await articleCollection.deleteOne(filter) ;
+    res.send(result)
+  })
+
+
+  //admin 
    app.patch(
     "/articles/admin/:id",
     verifyToken,
