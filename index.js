@@ -153,7 +153,6 @@ async function run() {
     res.send(result);
    })
 
-  
    app.get('/articles/:email',verifyToken,async(req,res)=> {
     const email = req.params.email ;
     const filter = {author_email : email} ;
@@ -164,6 +163,13 @@ async function run() {
   app.get('/premiumArticles',verifyToken,async(req,res)=>{
     const filter = {premium : true} ;
     const result = await articleCollection.find(filter).toArray() ;
+    res.send(result) ;
+  })
+
+  app.get('/article/:id', async(req,res)=>{
+    const id = req.params.id ;
+    const filter = {_id : new ObjectId(id)} ;
+    const result = await articleCollection.findOne(filter) ;
     res.send(result) ;
   })
 
