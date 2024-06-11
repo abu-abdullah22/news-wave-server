@@ -76,10 +76,23 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
-      const result = await userCollection.find().toArray();
-      res.send(result);
-    });
+    app.get('/users', verifyToken,verifyAdmin, async (req, res) => {
+ 
+          const page = parseInt(req.query.page) || 1;
+          const limit = parseInt(req.query.limit) || 10;
+          const skip = (page - 1) * limit;
+  
+          const users = await userCollection.find().skip(skip).limit(limit).toArray();
+          const total = await userCollection.countDocuments();
+  
+          res.send({
+              users,
+              total,
+              page,
+              limit
+          });
+  });
+  
 
     app.get('/users/:email',verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -169,7 +182,7 @@ async function run() {
     });
 
     
-    app.get("/articlesApproval", async (req, res) => {
+    app.get("/articlesApproval", verifyToken, verifyAdmin, async (req, res) => {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
