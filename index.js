@@ -168,6 +168,27 @@ async function run() {
       res.send(result);
     });
 
+    
+    app.get("/articlesApproval", async (req, res) => {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      const articles = await articleCollection
+        .find()
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+        
+      const total = await articleCollection.countDocuments();
+      res.send({
+        articles,
+        total,
+        page,
+        limit,
+      });
+    });
+
     app.get('/allArticles', async (req, res) => {
       const { publisher, tags, title } = req.query;
       let filter = { status: 'approved' };
