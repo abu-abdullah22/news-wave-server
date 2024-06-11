@@ -105,6 +105,22 @@ async function run() {
       }
     );
 
+    app.patch('/users/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const updatedData = req.body;
+  
+      const filter = { email: email };
+      const updateDoc = {
+          $set: {
+              ...updatedData,
+          },
+      };
+  
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+  });
+  
+
     app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
@@ -118,6 +134,15 @@ async function run() {
       }
       res.send({ admin });
     });
+
+    app.get('/user-stats',async(req,res)=> {
+      const totalUsers = await userCollection.countDocuments();
+      const premiumUsers= await userCollection.countDocuments({isPremium : true}) ;
+      const normalUsers = totalUsers - premiumUsers ;
+      res.send({
+        totalUsers, premiumUsers, normalUsers
+      })
+    })
 
     //publisher related api
     app.post("/publishers", verifyToken, verifyAdmin, async (req, res) => {

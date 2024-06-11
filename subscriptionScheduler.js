@@ -1,4 +1,3 @@
-// subscriptionScheduler.js
 const cron = require('node-cron');
 const { MongoClient } = require('mongodb');
 
