@@ -4,15 +4,15 @@ const cors = require("cors");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-
+const subscriptionScheduler = require('./subscriptionScheduler'); 
 app.use(cors({
   origin: ['http://localhost:5173']
 }));
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gvqow0e.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -20,9 +20,9 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
     const userCollection = client.db("newswaveDB").collection("users");
@@ -39,9 +39,7 @@ async function run() {
     });
 
     //middlewares
-
     const verifyToken = (req, res, next) => {
-      // console.log('inside verify',req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "unauthorized access" });
       }
@@ -67,7 +65,6 @@ async function run() {
     };
 
     //user related api
-
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
@@ -84,12 +81,12 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/users/:email',async(req,res)=> {
-      const email = req.params.email ;
-      const filter = {email : email} ;
-      const result = await userCollection.findOne(filter) ;
-      res.send(result) ;
-    })
+    app.get('/users/:email',verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await userCollection.findOne(filter);
+      res.send(result);
+    });
 
     app.patch(
       "/users/admin/:id",
@@ -129,158 +126,180 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/publishers', async(req,res)=> {
-      const result = await publisherCollection.find().toArray() ;
-      res.send(result) ;
-    })
-
+    app.get('/publishers', async (req, res) => {
+      const result = await publisherCollection.find().toArray();
+      res.send(result);
+    });
 
     //article related api
-    app.post('/articles', async(req,res)=>{
-      const article = req.body ;
+    app.post('/articles', async (req, res) => {
+      const article = req.body;
       const result = await articleCollection.insertOne(article);
-      res.send(result) ;
-    })
+      res.send(result);
+    });
 
-   app.get('/articles', async(req,res)=>{
-    const result = await articleCollection.find().toArray();
-    res.send(result);
-   })
+    app.get('/articles', async (req, res) => {
+      const result = await articleCollection.find().toArray();
+      res.send(result);
+    });
 
-   app.get('/allArticles', async (req, res) => {
-    const { publisher, tags, title } = req.query;
-    let filter = { status: 'approved' };
+    app.get('/allArticles', async (req, res) => {
+      const { publisher, tags, title } = req.query;
+      let filter = { status: 'approved' };
 
-    if (publisher) {
+      if (publisher) {
         filter.publisher = publisher;
-    }
-    if (tags) {
-        filter.tags = { $in: tags.split(',') };
-    }
-    if (title) {
-        filter.title = { $regex: title, $options: 'i' }; 
-    }
-
-    const result = await articleCollection.find(filter).toArray();
-    res.send(result);
-});
-
-
-
-   app.get('/articles/:email',verifyToken,async(req,res)=> {
-    const email = req.params.email ;
-    const filter = {author_email : email} ;
-    const result = await articleCollection.find(filter).toArray() ;
-    res.send(result) ;
-  })
-
-  app.get('/premiumArticles',verifyToken,async(req,res)=>{
-    const filter = {premium : true} ;
-    const result = await articleCollection.find(filter).toArray() ;
-    res.send(result) ;
-  })
-
-  app.get('/article/:id',verifyToken, async(req,res)=>{
-    const id = req.params.id ;
-    const filter = {_id : new ObjectId(id)} ;
-    const result = await articleCollection.findOne(filter) ;
-    res.send(result) ;
-  }) 
-  
-  app.put('/update/:id', async(req, res)=> {
-    const id = req.params.id ;
-    const query = {_id : new ObjectId(id)} ;
-    const articleData = req.body ;
-    const options = {upsert : true} ;
-    const updateDoc = {
-      $set : {
-        ...articleData, 
       }
-    }
-    const result = await articleCollection.updateOne(query, updateDoc, options);
-    res.send(result) ;
- 
-  }) ;
+      if (tags) {
+        filter.tags = { $in: tags.split(',') };
+      }
+      if (title) {
+        filter.title = { $regex: title, $options: 'i' };
+      }
 
+      const result = await articleCollection.find(filter).toArray();
+      res.send(result);
+    });
 
+    app.get('/articles/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const filter = { author_email: email };
+      const result = await articleCollection.find(filter).toArray();
+      res.send(result);
+    });
 
+    app.get('/premiumArticles', verifyToken, async (req, res) => {
+      const filter = { premium: true };
+      const result = await articleCollection.find(filter).toArray();
+      res.send(result);
+    });
 
-  app.patch('/articles/:id/incrementViewCount', verifyToken, async (req, res) => {
-    const { id } = req.params;
-    const articleId = new ObjectId(id);
-    const updateResult = await articleCollection.updateOne(
-      { _id: articleId },
-      { $inc: { viewCount: 1 } }
+    app.get('/article/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await articleCollection.findOne(filter);
+      res.send(result);
+    });
+
+    app.put('/update/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const articleData = req.body;
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...articleData,
+        }
+      };
+      const result = await articleCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
+
+    app.patch('/articles/:id/incrementViewCount', verifyToken, async (req, res) => {
+      const { id } = req.params;
+      const articleId = new ObjectId(id);
+      const updateResult = await articleCollection.updateOne(
+        { _id: articleId },
+        { $inc: { viewCount: 1 } }
+      );
+      const article = await articleCollection.findOne({ _id: articleId });
+      res.status(200).send(article);
+    });
+
+    app.get('/trendingArticles', async (req, res) => {
+      const articles = await articleCollection.find().sort({ viewCount: -1 }).limit(6).toArray();
+      res.status(200).json(articles);
+    });
+
+    app.delete('/delete/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await articleCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    //admin
+    app.patch(
+      "/articles/admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: "approved",
+          },
+        };
+        const result = await articleCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
     );
-    const article = await articleCollection.findOne({ _id: articleId });
-    res.status(200).send(article);
-  });
 
-  app.get('/trendingArticles', async (req, res) => {
-    const articles = await articleCollection.find().sort({ viewCount: -1 }).limit(6).toArray();
-    res.status(200).json(articles);
-  });
+    app.patch('/articles/admin/decline/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const articleId = req.params.id;
+      const { declineReason } = req.body;
+      const filter = { _id: new ObjectId(articleId) };
+      const updatedDoc = {
+        $set: {
+          status: 'declined',
+          declineReason: declineReason
+        }
+      };
+      const result = await articleCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
-  app.delete('/delete/:id',verifyToken,async(req,res)=> {
-    const id = req.params.id ;
-    const filter = {_id: new ObjectId(id)} ;
-    const result = await articleCollection.deleteOne(filter) ;
-    res.send(result)
-  })
-
-
-  //admin 
-   app.patch(
-    "/articles/admin/:id",
-    verifyToken,
-    verifyAdmin,
-    async (req, res) => {
+    app.patch('/articles/admin/premium/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
-          status: "approved",
-        },
+          premium: true,
+        }
       };
       const result = await articleCollection.updateOne(filter, updatedDoc);
       res.send(result);
-    }
-  );
-  
-  app.patch('/articles/admin/decline/:id',verifyToken,verifyAdmin,async(req,res)=>{
-    const articleId = req.params.id;
-    const { declineReason } = req.body;
-    const filter = {_id : new ObjectId(articleId)};
-    const updatedDoc = {
-      $set : {
-        status : 'declined',
-        declineReason : declineReason
-      }
-    } ;
-    const result = await articleCollection.updateOne(filter,updatedDoc);
-    res.send(result); 
-  }) ;
+    });
 
-  app.patch('/articles/admin/premium/:id',verifyToken,verifyAdmin,async(req,res)=> {
-    const id = req.params.id ;
-    const filter = {_id : new ObjectId(id)} ;
-    const updatedDoc = {
-      $set : {
-        premium : true ,
-      }
-    }
-    const result = await articleCollection.updateOne(filter,updatedDoc) ;
-    res.send(result) ;
-  }) ;
+    app.delete('/articles/admin/delete/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await articleCollection.deleteOne(filter);
+      res.send(result);
+    });
 
-  app.delete('/articles/admin/delete/:id',verifyToken,verifyAdmin,async(req,res)=> {
-    const id = req.params.id ;
-    const filter = {_id: new ObjectId(id)} ;
-    const result = await articleCollection.deleteOne(filter) ;
-    res.send(result)
-  })
+    // payment apis
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
 
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card'],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      });
+    });
 
+    app.patch("/users/premium/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const { subscriptionPlan, premiumExpiry } = req.body;
+
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          subscriptionPlan: subscriptionPlan,
+          isPremium: true,
+          premiumExpiry: new Date(premiumExpiry),
+        },
+      };
+
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
