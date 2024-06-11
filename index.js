@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const subscriptionScheduler = require("./subscriptionScheduler");
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", 'https://news-wave-3a5c6.web.app'],
   })
 );
 app.use(express.json());
